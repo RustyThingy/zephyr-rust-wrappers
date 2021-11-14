@@ -225,12 +225,18 @@ pub unsafe fn trigger_set(
     f: extern "C" fn(dev: &'static Device, trigger: &SensorTrigger),
 ) -> Result<(), ZephyrError> {
     use zephyr_sys::raw::sensor_driver_api as SensorDriverApi;
+    // convert void pointer from C API to a sensor driver API Rust struct
     let api: Option<&SensorDriverApi> = std::mem::transmute(device.api);
 
     if let Some(api) = api {
         if let Some(trigger_set) = api.trigger_set {
+            // convert safe Rust function pointer to pointer for binding. This can be done because
+            // we use C calling convention for both functions (extern "C") and as per the Rustonomicon
+            // a typed reference is effectively a (slim-)pointer. Using Option is not necessary because
+            // the references are guaranteed to be non-null by Zephyr.
             let callback: extern "C" fn(dev: *const Device, trigger: *const SensorTrigger) =
                 std::mem::transmute(f);
+            // function pointers need to be called like this
             let errno = (trigger_set)(
                 device as *const Device,
                 sensor_trigger as *const SensorTrigger,
