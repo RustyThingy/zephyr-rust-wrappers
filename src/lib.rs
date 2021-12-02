@@ -1,9 +1,14 @@
 #![feature(arbitrary_enum_discriminant)]
+#![feature(const_fn_transmute)]
+#![feature(const_fn_fn_ptr_basics)]
+#![feature(const_mut_refs)]
 extern crate zephyr_sys;
 
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
+#[cfg(feature = "bluetooth")]
+pub mod bluetooth;
 pub mod gpio;
 pub mod sensor;
 
@@ -108,3 +113,5 @@ impl Display for ZephyrError {
 }
 
 impl Error for ZephyrError {}
+
+type ZephyrResult<T> = Result<T, ZephyrError>;
