@@ -10,7 +10,8 @@ edition = "2018"
 zephyr = { path = "../zephyr-rust/rust/zephyr" }
 uuid = { version = "1.0.0-alpha.1", optional = true }
 bitflags = { version = "1.3.2", optional = true }
-pretty-hex = "0.2.1"
+pretty-hex = { version = "0.2.1", optional = true }
+libc = { version = "0.2.108", optional = true }
 
 [features]
-bluetooth = ["uuid", "bitflags"]
+bluetooth = ["uuid", "bitflags", "libc", "pretty-hex"]

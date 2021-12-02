@@ -10,6 +10,7 @@ use std::ops::Deref;
 use std::ptr::slice_from_raw_parts;
 use std::slice;
 use pretty_hex::simple_hex;
+use crate::bluetooth::gatt::GattService;
 
 pub type BtReadyCallback = extern "C" fn(err: u32) -> ();
 
@@ -20,6 +21,7 @@ pub type BtLeParametersRequestedCallback =
 pub type BtLeParametersUpdatedCallback =
     extern "C" fn(connection: &mut BtConnection, interval: u16, latency: u16, timeout: u16);
 
+#[repr(transparent)]
 pub struct BtConnectionCallbacks(zephyr_sys::raw::bt_conn_cb);
 
 impl BtConnectionCallbacks {
@@ -30,23 +32,9 @@ impl BtConnectionCallbacks {
         parameters_updated: Option<BtLeParametersUpdatedCallback>,
     ) -> Self {
         let connected = unsafe { std::mem::transmute(connected) };
-        let disconnected: Option<
-            unsafe extern "C" fn(conn: *mut zephyr_sys::raw::bt_conn, reason: u8),
-        > = unsafe { std::mem::transmute(disconnected) };
-        let le_param_req: Option<
-            unsafe extern "C" fn(
-                conn: *mut zephyr_sys::raw::bt_conn,
-                param: *mut zephyr_sys::raw::bt_le_conn_param,
-            ) -> bool,
-        > = unsafe { std::mem::transmute(parameters_requested) };
-        let le_param_updated: Option<
-            unsafe extern "C" fn(
-                conn: *mut zephyr_sys::raw::bt_conn,
-                interval: u16,
-                latency: u16,
-                timeout: u16,
-            ),
-        > = unsafe { std::mem::transmute(parameters_updated) };
+        let disconnected = unsafe { std::mem::transmute(disconnected) };
+        let le_param_req = unsafe { std::mem::transmute(parameters_requested) };
+        let le_param_updated = unsafe { std::mem::transmute(parameters_updated) };
 
         Self(zephyr_sys::raw::bt_conn_cb {
             connected,
@@ -76,9 +64,21 @@ impl ApiContainer {
 static mut API_CONTAINER: ApiContainer = ApiContainer { api: Some(Api {}) };
 
 /// Only one instance is allowed to exist!
-pub struct Api {}
+pub struct Api;
 
 impl Api {
+    pub fn register_service(service: &mut GattService) -> ZephyrResult<()> {
+        let errno = unsafe {
+            zephyr_sys::raw::bt_gatt_service_register(std::mem::transmute(service))
+        };
+
+        if errno == 0 {
+            Ok(())
+        } else {
+            Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
+        }
+    }
+
     pub fn enable() -> Result<Api, ZephyrError> {
         let api = unsafe { API_CONTAINER.take_api() };
         unsafe {

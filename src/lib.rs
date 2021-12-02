@@ -2,6 +2,8 @@
 #![feature(const_fn_transmute)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_mut_refs)]
+#![feature(const_fn)]
+#![feature(const_ptr_offset)]
 extern crate zephyr_sys;
 
 use std::error::Error;

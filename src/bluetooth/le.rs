@@ -1,9 +1,9 @@
 use bitflags::bitflags;
 bitflags! {
-    pub struct AdvertisementFlags: u32 {
-        const GeneralDiscoverable = zephyr_sys::raw::BT_LE_AD_GENERAL;
-        const LimitedDiscoverable = zephyr_sys::raw::BT_LE_AD_LIMITED;
-        const NoBREDRSupport = zephyr_sys::raw::BT_LE_AD_NO_BREDR;
+    pub struct AdvertisementFlags: u8 {
+        const GeneralDiscoverable = zephyr_sys::raw::BT_LE_AD_GENERAL as u8;
+        const LimitedDiscoverable = zephyr_sys::raw::BT_LE_AD_LIMITED as u8;
+        const NoBREDRSupport = zephyr_sys::raw::BT_LE_AD_NO_BREDR as u8;
     }
 }
 

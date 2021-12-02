@@ -3,6 +3,7 @@ use uuid::{Bytes, Uuid};
 pub use zephyr_sys::raw::{
     bt_uuid_128 as BtUuid128, bt_uuid_16 as BtUuid16, bt_uuid_32 as BtUuid32,
 };
+use crate::bluetooth::gatt::UserData;
 
 pub const BT_BASE_UUID: Uuid = Uuid::from_bytes([
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB,
@@ -14,6 +15,10 @@ const BT_BASE_D4: [u8; 8] = [0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB];
 
 #[repr(transparent)]
 pub struct BtUuid(Uuid);
+
+unsafe impl UserData for BtUuid128 {
+
+}
 
 impl BtUuid {
     pub const fn from_bytes(bytes: Bytes) -> BtUuid {
@@ -45,6 +50,37 @@ impl BtUuid {
             BT_BASE_D4[6],
             BT_BASE_D4[7],
         ]))
+    }
+
+    pub const fn reverse(&self) -> BtUuid {
+        let bytes: &[u8; 16] = self.0.as_bytes();
+        let mut new_bytes = [0_u8; 16];
+        new_bytes[0] = bytes[15];
+        new_bytes[1] = bytes[14];
+        new_bytes[2] = bytes[13];
+        new_bytes[3] = bytes[12];
+        new_bytes[4] = bytes[11];
+        new_bytes[5] = bytes[10];
+        new_bytes[6] = bytes[9];
+        new_bytes[7] = bytes[8];
+        new_bytes[8] = bytes[7];
+        new_bytes[9] = bytes[6];
+        new_bytes[10] = bytes[5];
+        new_bytes[11] = bytes[4];
+        new_bytes[12] = bytes[3];
+        new_bytes[13] = bytes[2];
+        new_bytes[14] = bytes[1];
+        new_bytes[15] = bytes[0];
+        Self::from_bytes(new_bytes)
+    }
+
+    pub const fn to_uuid128(&self) -> BtUuid128 {
+        BtUuid128 {
+            uuid: zephyr_sys::raw::bt_uuid {
+                type_: zephyr_sys::raw::BT_UUID_TYPE_128 as u8,
+            },
+            val: *self.0.as_bytes(),
+        }
     }
 }
 
@@ -129,5 +165,14 @@ impl From<BtUuid> for BtUuid16 {
             },
             val: d1 as u16,
         }
+    }
+}
+
+pub const fn uuid16(d1: u16) -> BtUuid16 {
+    BtUuid16 {
+        uuid: zephyr_sys::raw::bt_uuid {
+            type_: zephyr_sys::raw::BT_UUID_TYPE_16 as u8,
+        },
+        val: d1,
     }
 }
