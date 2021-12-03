@@ -26,10 +26,29 @@ unsafe impl UserData for BtUuid128 {}
 
 impl BtUuid {
     pub const fn from_bytes(bytes: Bytes) -> BtUuid {
-        BtUuid(Uuid::from_bytes(bytes))
+        BtUuid::from_uuid(Uuid::from_bytes(bytes))
     }
     pub const fn from_uuid(uuid: Uuid) -> BtUuid {
-        BtUuid(uuid)
+        let bytes: &[u8; 16] = uuid.as_bytes();
+        // reverse byte order for bluetooth, unwrapped for const fn
+        let mut rev_bytes = [0_u8; 16];
+        rev_bytes[0] = bytes[15];
+        rev_bytes[1] = bytes[14];
+        rev_bytes[2] = bytes[13];
+        rev_bytes[3] = bytes[12];
+        rev_bytes[4] = bytes[11];
+        rev_bytes[5] = bytes[10];
+        rev_bytes[6] = bytes[9];
+        rev_bytes[7] = bytes[8];
+        rev_bytes[8] = bytes[7];
+        rev_bytes[9] = bytes[6];
+        rev_bytes[10] = bytes[5];
+        rev_bytes[11] = bytes[4];
+        rev_bytes[12] = bytes[3];
+        rev_bytes[13] = bytes[2];
+        rev_bytes[14] = bytes[1];
+        rev_bytes[15] = bytes[0];
+        Self::from_bytes(rev_bytes)
     }
 
     pub const fn service_uuid_32(service_id: u32) -> BtUuid {
@@ -54,28 +73,6 @@ impl BtUuid {
             BT_BASE_D4[6],
             BT_BASE_D4[7],
         ]))
-    }
-
-    pub const fn reverse(&self) -> BtUuid {
-        let bytes: &[u8; 16] = self.0.as_bytes();
-        let mut new_bytes = [0_u8; 16];
-        new_bytes[0] = bytes[15];
-        new_bytes[1] = bytes[14];
-        new_bytes[2] = bytes[13];
-        new_bytes[3] = bytes[12];
-        new_bytes[4] = bytes[11];
-        new_bytes[5] = bytes[10];
-        new_bytes[6] = bytes[9];
-        new_bytes[7] = bytes[8];
-        new_bytes[8] = bytes[7];
-        new_bytes[9] = bytes[6];
-        new_bytes[10] = bytes[5];
-        new_bytes[11] = bytes[4];
-        new_bytes[12] = bytes[3];
-        new_bytes[13] = bytes[2];
-        new_bytes[14] = bytes[1];
-        new_bytes[15] = bytes[0];
-        Self::from_bytes(new_bytes)
     }
 
     pub const fn to_uuid128(&self) -> BtUuid128 {
