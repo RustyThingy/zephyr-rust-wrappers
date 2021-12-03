@@ -17,6 +17,23 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub struct ScanOptions: u32 {
+        const None = zephyr_sys::raw::BT_LE_SCAN_OPT_NONE;
+        const FilterDuplicate = zephyr_sys::raw::BT_LE_SCAN_OPT_FILTER_DUPLICATE;
+        const FilterAcceptList = zephyr_sys::raw::BT_LE_SCAN_OPT_FILTER_ACCEPT_LIST;
+        const Coded = zephyr_sys::raw::BT_LE_SCAN_OPT_CODED;
+        const No1M = zephyr_sys::raw::BT_LE_SCAN_OPT_NO_1M;
+    }
+}
+
+bitflags! {
+    pub struct ScanType: u8 {
+        const Passive = zephyr_sys::raw::BT_LE_SCAN_TYPE_PASSIVE as u8;
+        const Active = zephyr_sys::raw::BT_LE_SCAN_TYPE_ACTIVE as u8;
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct ConnectionParameters {
@@ -177,6 +194,61 @@ impl From<&AdvertisementParameters> for zephyr_sys::raw::bt_le_adv_param {
             interval_min: *interval_min,
             interval_max: *interval_max,
             peer: unsafe { std::mem::transmute(peer.as_ref()) },
+        }
+    }
+}
+
+pub struct ScanParameters {
+    type_: ScanType,
+    options: ScanOptions,
+    interval: u16,
+    window: u16,
+    timeout: u16,
+    interval_coded: u16,
+    window_coded: u16
+}
+
+impl ScanParameters {
+    pub fn new(
+        type_: ScanType,
+        options: ScanOptions,
+        interval: u16,
+        window: u16,
+        timeout: u16,
+        interval_coded: u16, 
+        window_coded: u16
+    ) -> Self {
+        Self {
+            type_,
+            options,
+            interval,
+            window,
+            timeout,
+            interval_coded,
+            window_coded
+        }
+    }
+}
+
+impl From<&ScanParameters> for zephyr_sys::raw::bt_le_scan_param {
+    fn from(other: &ScanParameters) -> Self {
+        let ScanParameters {
+            type_,
+            options,
+            interval,
+            window,
+            timeout,
+            interval_coded,
+            window_coded
+        } = other;
+        Self {
+            type_: type_.bits(),
+            interval: *interval,
+            window: *window,
+            options: options.bits(),
+            timeout: *timeout,
+            window_coded: *window_coded,
+            interval_coded: *interval_coded,
         }
     }
 }

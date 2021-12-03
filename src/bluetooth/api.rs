@@ -4,6 +4,7 @@ use crate::bluetooth::gatt::GattService;
 use crate::bluetooth::le::{AdvertisementParameters, ConnectionParameters};
 use crate::bluetooth::CONTEXT;
 use crate::{ErrorNumber, ZephyrError, ZephyrResult};
+use crate::network::{NetworkBufferSimple};
 use pretty_hex::simple_hex;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
@@ -20,6 +21,7 @@ pub type BtLeParametersRequestedCallback =
     extern "C" fn(connection: &mut BtConnection, parameters: &mut ConnectionParameters) -> bool;
 pub type BtLeParametersUpdatedCallback =
     extern "C" fn(connection: &mut BtConnection, interval: u16, latency: u16, timeout: u16);
+pub type BtLeScanCallback = extern "C" fn(addr: BtAddress, rssi: u8, adv_type: , buffer: &NetworkBufferSimple);
 
 #[repr(transparent)]
 pub struct BtConnectionCallbacks(zephyr_sys::raw::bt_conn_cb);

@@ -26,7 +26,7 @@ unsafe impl UserData for BtUuid128 {}
 
 impl BtUuid {
     pub const fn from_bytes(bytes: Bytes) -> BtUuid {
-        BtUuid::from_uuid(Uuid::from_bytes(bytes))
+        BtUuid(Uuid::from_bytes(bytes))
     }
     pub const fn from_uuid(uuid: Uuid) -> BtUuid {
         let bytes: &[u8; 16] = uuid.as_bytes();
