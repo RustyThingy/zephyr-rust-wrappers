@@ -1,16 +1,16 @@
 use crate::bluetooth::connection::BtConnection;
 use crate::bluetooth::data::{BtData, RawBtData};
+use crate::bluetooth::gatt::GattService;
 use crate::bluetooth::le::{AdvertisementParameters, ConnectionParameters};
 use crate::bluetooth::CONTEXT;
 use crate::{ErrorNumber, ZephyrError, ZephyrResult};
+use pretty_hex::simple_hex;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::mem::replace;
 use std::ops::Deref;
 use std::ptr::slice_from_raw_parts;
 use std::slice;
-use pretty_hex::simple_hex;
-use crate::bluetooth::gatt::GattService;
 
 pub type BtReadyCallback = extern "C" fn(err: u32) -> ();
 
@@ -68,9 +68,8 @@ pub struct Api;
 
 impl Api {
     pub fn register_service(service: &mut GattService) -> ZephyrResult<()> {
-        let errno = unsafe {
-            zephyr_sys::raw::bt_gatt_service_register(std::mem::transmute(service))
-        };
+        let errno =
+            unsafe { zephyr_sys::raw::bt_gatt_service_register(std::mem::transmute(service)) };
 
         if errno == 0 {
             Ok(())
@@ -179,20 +178,29 @@ impl RawAdvertisementHandle {
                 .iter()
                 .map(|bt_data| {
                     let raw = bt_data.raw();
-                    println!("type: 0x{:02x} len: {:02} data: {}", raw.type_(), raw.data().len(), simple_hex(raw.data()));
+                    println!(
+                        "type: 0x{:02x} len: {:02} data: {}",
+                        raw.type_(),
+                        raw.data().len(),
+                        simple_hex(raw.data())
+                    );
                     raw
                 })
                 .collect()
         });
-        let raw_sd_data = scan_response_data.map(|slice| {
-            slice
-                .iter()
-                .map(|bt_data| bt_data.raw())
+        let raw_sd_data =
+            scan_response_data.map(|slice| slice.iter().map(|bt_data| bt_data.raw()).collect());
+
+        let zraw_ad_data = raw_ad_data.as_ref().map(|vec: &Vec<RawBtData>| {
+            vec.iter()
+                .map(|raw_bt_data| raw_bt_data.sys_ref())
                 .collect()
         });
-
-        let zraw_ad_data = raw_ad_data.as_ref().map(|vec: &Vec<RawBtData>| vec.iter().map(|raw_bt_data| raw_bt_data.sys_ref()).collect());
-        let zraw_sd_data = raw_sd_data.as_ref().map(|vec: &Vec<RawBtData>| vec.iter().map(|raw_bt_data| raw_bt_data.sys_ref()).collect());
+        let zraw_sd_data = raw_sd_data.as_ref().map(|vec: &Vec<RawBtData>| {
+            vec.iter()
+                .map(|raw_bt_data| raw_bt_data.sys_ref())
+                .collect()
+        });
 
         RawAdvertisementHandle {
             raw_ad_data,

@@ -116,4 +116,4 @@ impl Display for ZephyrError {
 
 impl Error for ZephyrError {}
 
-type ZephyrResult<T> = Result<T, ZephyrError>;
+pub type ZephyrResult<T> = Result<T, ZephyrError>;

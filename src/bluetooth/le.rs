@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use std::fmt::{write, Debug, Display, Formatter};
 bitflags! {
     pub struct AdvertisementFlags: u8 {
         const GeneralDiscoverable = zephyr_sys::raw::BT_LE_AD_GENERAL as u8;
@@ -59,15 +60,68 @@ impl From<ConnectionParameters> for zephyr_sys::raw::bt_le_conn_param {
     }
 }
 
-#[repr(transparent)]
-pub struct LeAddress(zephyr_sys::raw::bt_addr_le_t);
+#[repr(u8)]
+pub enum AddressType {
+    Public = zephyr_sys::raw::BT_ADDR_LE_PUBLIC as u8,
+    Random = zephyr_sys::raw::BT_ADDR_LE_RANDOM as u8,
+    PublicId = zephyr_sys::raw::BT_ADDR_LE_PUBLIC_ID as u8,
+    RandomId = zephyr_sys::raw::BT_ADDR_LE_RANDOM_ID as u8,
+    Other(u8),
+}
 
-impl ToString for LeAddress {
-    fn to_string(&self) -> String {
-        let address: &[u8; 6] = &self.0.a.val;
-        format!(
-            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-            address[0], address[1], address[2], address[3], address[4], address[5],
+impl From<u8> for AddressType {
+    fn from(number: u8) -> Self {
+        match number as u32 {
+            zephyr_sys::raw::BT_ADDR_LE_PUBLIC => AddressType::Public,
+            zephyr_sys::raw::BT_ADDR_LE_RANDOM => AddressType::Random,
+            zephyr_sys::raw::BT_ADDR_LE_PUBLIC_ID => AddressType::PublicId,
+            zephyr_sys::raw::BT_ADDR_LE_RANDOM_ID => AddressType::RandomId,
+            other => AddressType::Other(other as u8),
+        }
+    }
+}
+
+impl Display for AddressType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddressType::Public => write!(f, "public"),
+            AddressType::Random => write!(f, "random"),
+            AddressType::PublicId => write!(f, "public-id"),
+            AddressType::RandomId => write!(f, "random-id"),
+            AddressType::Other(other) => write!(f, "unknown: 0x{:02x}", other),
+        }
+    }
+}
+
+pub struct LeAddress {
+    address: [u8; 6],
+    addr_type: AddressType,
+}
+
+impl LeAddress {
+    pub fn new(addr_type: AddressType, address: [u8; 6]) -> Self {
+        Self { addr_type, address }
+    }
+}
+
+impl Debug for LeAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let address: &[u8; 6] = &self.address;
+        write!(
+            f,
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} ({})",
+            address[5], address[4], address[3], address[2], address[1], address[0], self.addr_type,
+        )
+    }
+}
+
+impl Display for LeAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let address: &[u8; 6] = &self.address;
+        write!(
+            f,
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} ({})",
+            address[5], address[4], address[3], address[2], address[1], address[0], self.addr_type,
         )
     }
 }

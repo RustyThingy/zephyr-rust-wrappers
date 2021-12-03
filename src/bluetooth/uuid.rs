@@ -1,9 +1,15 @@
+use crate::bluetooth::gatt::UserData;
 use std::ops::Deref;
 use uuid::{Bytes, Uuid};
 pub use zephyr_sys::raw::{
     bt_uuid_128 as BtUuid128, bt_uuid_16 as BtUuid16, bt_uuid_32 as BtUuid32,
 };
-use crate::bluetooth::gatt::UserData;
+
+pub static PRIMARY_SERVICE_UUID: BtUuid16 = uuid16(0x2800);
+pub static GATT_CHARACTERISTIC_UUID: BtUuid16 =
+    uuid16(zephyr_sys::raw::BT_UUID_GATT_CHRC_VAL as u16);
+pub static GATT_CARACTERSITIC_PRESENTATION_FORMAT_UUID: BtUuid16 =
+    uuid16(zephyr_sys::raw::BT_UUID_GATT_CPF_VAL as u16);
 
 pub const BT_BASE_UUID: Uuid = Uuid::from_bytes([
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB,
@@ -16,9 +22,7 @@ const BT_BASE_D4: [u8; 8] = [0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB];
 #[repr(transparent)]
 pub struct BtUuid(Uuid);
 
-unsafe impl UserData for BtUuid128 {
-
-}
+unsafe impl UserData for BtUuid128 {}
 
 impl BtUuid {
     pub const fn from_bytes(bytes: Bytes) -> BtUuid {
