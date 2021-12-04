@@ -110,6 +110,20 @@ impl Display for AddressType {
     }
 }
 
+#[repr(transparent)]
+pub struct AddressWrapper(zephyr_sys::raw::bt_addr_le_t);
+
+impl Debug for AddressWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let address: &[u8; 6] = &self.0.a.val;
+        write!(
+            f,
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} ({})",
+            address[5], address[4], address[3], address[2], address[1], address[0], AddressType::from(self.0.type_),
+        )
+    }
+}
+
 pub struct LeAddress {
     address: [u8; 6],
     addr_type: AddressType,

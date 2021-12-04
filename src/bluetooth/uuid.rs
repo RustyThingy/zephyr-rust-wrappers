@@ -20,6 +20,7 @@ const BT_BASE_D3: u16 = 0x1000;
 const BT_BASE_D4: [u8; 8] = [0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB];
 
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct BtUuid(Uuid);
 
 unsafe impl UserData for BtUuid128 {}

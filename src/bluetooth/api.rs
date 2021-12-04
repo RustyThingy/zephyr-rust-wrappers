@@ -1,7 +1,7 @@
 use crate::bluetooth::connection::BtConnection;
 use crate::bluetooth::data::{BtData, RawBtData};
 use crate::bluetooth::gatt::GattService;
-use crate::bluetooth::le::{AdvertisementParameters, ConnectionParameters};
+use crate::bluetooth::le::{AddressWrapper, AdvertisementParameters, ConnectionParameters, ScanParameters};
 use crate::bluetooth::CONTEXT;
 use crate::{ErrorNumber, ZephyrError, ZephyrResult};
 use crate::network::{NetworkBufferSimple};
@@ -21,7 +21,7 @@ pub type BtLeParametersRequestedCallback =
     extern "C" fn(connection: &mut BtConnection, parameters: &mut ConnectionParameters) -> bool;
 pub type BtLeParametersUpdatedCallback =
     extern "C" fn(connection: &mut BtConnection, interval: u16, latency: u16, timeout: u16);
-pub type BtLeScanCallback = extern "C" fn(addr: BtAddress, rssi: u8, adv_type: , buffer: &NetworkBufferSimple);
+pub type BtLeScanCallback = extern "C" fn(addr: &AddressWrapper, rssi: i8, adv_type: u8, buffer: &mut NetworkBufferSimple);
 
 #[repr(transparent)]
 pub struct BtConnectionCallbacks(zephyr_sys::raw::bt_conn_cb);
@@ -107,6 +107,14 @@ impl Api {
         scan_response_data: Option<&[BtData]>,
     ) -> ZephyrResult<()> {
         unsafe { start_advertising(parameters, advertisement_data, scan_response_data) }
+    }
+
+    pub fn start_scanning(
+        &mut self,
+        parameters: &ScanParameters,
+        callback: BtLeScanCallback,
+    ) -> ZephyrResult<()> {
+        unsafe { start_scanning(parameters, callback) }
     }
 }
 
@@ -243,5 +251,20 @@ impl RawAdvertisementHandle {
             .as_ref()
             .map(|vec| vec.len())
             .unwrap_or(0_usize)
+    }
+}
+
+pub unsafe fn start_scanning(scan_parameters: &ScanParameters, callback: BtLeScanCallback) -> ZephyrResult<()> {
+    let bt_le_scan_param = zephyr_sys::raw::bt_le_scan_param::from(scan_parameters);
+
+    let errno = zephyr_sys::raw::bt_le_scan_start(
+        &bt_le_scan_param,
+        std::mem::transmute(callback),
+    );
+
+    if errno == 0 {
+        Ok(())
+    } else {
+        Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
     }
 }
