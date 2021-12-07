@@ -1,15 +1,18 @@
+use std::mem::transmute;
 use crate::bluetooth::gatt::UserData;
 use std::ops::Deref;
 use uuid::{Bytes, Uuid};
 pub use zephyr_sys::raw::{
-    bt_uuid_128 as BtUuid128, bt_uuid_16 as BtUuid16, bt_uuid_32 as BtUuid32,
+    bt_uuid_128 as BtUuid128, bt_uuid_16 as BtUuid16, bt_uuid_32 as BtUuid32, bt_uuid,
 };
 
 pub static PRIMARY_SERVICE_UUID: BtUuid16 = uuid16(0x2800);
 pub static GATT_CHARACTERISTIC_UUID: BtUuid16 =
     uuid16(zephyr_sys::raw::BT_UUID_GATT_CHRC_VAL as u16);
-pub static GATT_CARACTERSITIC_PRESENTATION_FORMAT_UUID: BtUuid16 =
+pub static GATT_CHARACTERISTIC_PRESENTATION_FORMAT_UUID: BtUuid16 =
     uuid16(zephyr_sys::raw::BT_UUID_GATT_CPF_VAL as u16);
+pub static GATT_CLIENT_CHARACTERISTIC_CONFIGURATOR_UUID: BtUuid16 =
+    uuid16(zephyr_sys::raw::BT_UUID_GATT_CCC_VAL as u16);
 
 pub const BT_BASE_UUID: Uuid = Uuid::from_bytes([
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB,
@@ -20,7 +23,7 @@ const BT_BASE_D3: u16 = 0x1000;
 const BT_BASE_D4: [u8; 8] = [0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB];
 
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct BtUuid(Uuid);
 
 unsafe impl UserData for BtUuid128 {}
@@ -176,5 +179,33 @@ pub const fn uuid16(d1: u16) -> BtUuid16 {
             type_: zephyr_sys::raw::BT_UUID_TYPE_16 as u8,
         },
         val: d1,
+    }
+}
+
+pub fn compare_uuids(one: &bt_uuid, other: &bt_uuid) -> bool {
+    if one.type_ != other.type_ {
+        false
+    } else {
+        match one.type_ as u32 {
+            zephyr_sys::raw::BT_UUID_TYPE_128 => {
+                let one: *const BtUuid128 = unsafe { transmute(one as *const bt_uuid) };
+                let other: *const BtUuid128 = unsafe { transmute(other as *const bt_uuid) };
+
+                unsafe { *one }.val == (unsafe { *other }.val)
+            }
+            zephyr_sys::raw::BT_UUID_TYPE_32 => {
+                let one: *const BtUuid32 = unsafe { transmute(one as *const bt_uuid) };
+                let other: *const BtUuid32 = unsafe { transmute(other as *const bt_uuid) };
+
+                unsafe { *one }.val == unsafe { *other }.val
+            }
+            zephyr_sys::raw::BT_UUID_TYPE_16 => {
+                let one: *const BtUuid16 = unsafe { transmute(one as *const bt_uuid) };
+                let other: *const BtUuid16 = unsafe { transmute(other as *const bt_uuid) };
+
+                unsafe { *one }.val == unsafe { *other }.val
+            }
+            type_ => unimplemented!("unknown uuid type {}", type_)
+        }
     }
 }

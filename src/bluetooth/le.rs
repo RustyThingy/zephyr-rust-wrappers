@@ -34,45 +34,36 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct ConnectionParameters {
-    pub interval_min: u16,
-    pub interval_max: u16,
-    pub latency: u16,
-    pub timeout: u16,
-}
+#[repr(transparent)]
+pub struct ConnectionParameters(zephyr_sys::raw::bt_le_conn_param);
 
-impl From<zephyr_sys::raw::bt_le_conn_param> for ConnectionParameters {
-    fn from(other: zephyr_sys::raw::bt_le_conn_param) -> Self {
-        let zephyr_sys::raw::bt_le_conn_param {
-            interval_min,
-            interval_max,
-            latency,
-            timeout,
-        } = other;
-        Self {
-            interval_min,
-            interval_max,
-            latency,
-            timeout,
+impl ConnectionParameters {
+    pub const fn default() -> ConnectionParameters {
+        ConnectionParameters {
+            0: zephyr_sys::raw::bt_le_conn_param {
+                interval_min: 0x0018,
+                interval_max: 0x0028,
+                latency: 0,
+                timeout: 400,
+            },
         }
     }
 }
 
-impl From<ConnectionParameters> for zephyr_sys::raw::bt_le_conn_param {
-    fn from(other: ConnectionParameters) -> Self {
-        let ConnectionParameters {
-            interval_min,
-            interval_max,
-            latency,
-            timeout,
-        } = other;
-        Self {
-            interval_min,
-            interval_max,
-            latency,
-            timeout,
+#[repr(transparent)]
+pub struct ConnectionCreationParameters(zephyr_sys::raw::bt_conn_le_create_param);
+
+impl ConnectionCreationParameters {
+    pub const fn default() -> ConnectionCreationParameters {
+        ConnectionCreationParameters {
+            0: zephyr_sys::raw::bt_conn_le_create_param {
+                options: 0,
+                interval: 0x0060,
+                window: 0x0030,
+                interval_coded: 0,
+                window_coded: 0,
+                timeout: 0,
+            },
         }
     }
 }
@@ -119,7 +110,13 @@ impl Debug for AddressWrapper {
         write!(
             f,
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} ({})",
-            address[5], address[4], address[3], address[2], address[1], address[0], AddressType::from(self.0.type_),
+            address[5],
+            address[4],
+            address[3],
+            address[2],
+            address[1],
+            address[0],
+            AddressType::from(self.0.type_),
         )
     }
 }
@@ -219,18 +216,18 @@ pub struct ScanParameters {
     window: u16,
     timeout: u16,
     interval_coded: u16,
-    window_coded: u16
+    window_coded: u16,
 }
 
 impl ScanParameters {
-    pub fn new(
+    pub const fn new(
         type_: ScanType,
         options: ScanOptions,
         interval: u16,
         window: u16,
         timeout: u16,
-        interval_coded: u16, 
-        window_coded: u16
+        interval_coded: u16,
+        window_coded: u16,
     ) -> Self {
         Self {
             type_,
@@ -239,7 +236,7 @@ impl ScanParameters {
             window,
             timeout,
             interval_coded,
-            window_coded
+            window_coded,
         }
     }
 }
@@ -253,7 +250,7 @@ impl From<&ScanParameters> for zephyr_sys::raw::bt_le_scan_param {
             window,
             timeout,
             interval_coded,
-            window_coded
+            window_coded,
         } = other;
         Self {
             type_: type_.bits(),

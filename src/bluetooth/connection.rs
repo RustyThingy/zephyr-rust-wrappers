@@ -2,6 +2,7 @@ use crate::bluetooth::le::{AddressType, LeAddress};
 use std::mem::transmute;
 
 #[repr(transparent)]
+#[derive(Eq)]
 pub struct BtConnection(*mut zephyr_sys::raw::bt_conn);
 
 impl BtConnection {
@@ -16,5 +17,11 @@ impl BtConnection {
         } else {
             None
         }
+    }
+}
+
+impl PartialEq for BtConnection {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }

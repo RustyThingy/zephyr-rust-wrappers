@@ -1,14 +1,17 @@
 use crate::bluetooth::connection::BtConnection;
 use crate::bluetooth::data::{BtData, RawBtData};
-use crate::bluetooth::gatt::GattService;
-use crate::bluetooth::le::{AddressWrapper, AdvertisementParameters, ConnectionParameters, ScanParameters};
-use crate::bluetooth::CONTEXT;
+use crate::bluetooth::gatt::{GattService, DiscoverParameters};
+use crate::bluetooth::le::{
+    AddressWrapper, AdvertisementParameters, ConnectionCreationParameters, ConnectionParameters,
+    LeAddress, ScanParameters,
+};
+use crate::bluetooth::{CONTEXT, gatt};
+use crate::network::NetworkBufferSimple;
 use crate::{ErrorNumber, ZephyrError, ZephyrResult};
-use crate::network::{NetworkBufferSimple};
 use pretty_hex::simple_hex;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
-use std::mem::replace;
+use std::mem::{replace, transmute};
 use std::ops::Deref;
 use std::ptr::slice_from_raw_parts;
 use std::slice;
@@ -21,7 +24,8 @@ pub type BtLeParametersRequestedCallback =
     extern "C" fn(connection: &mut BtConnection, parameters: &mut ConnectionParameters) -> bool;
 pub type BtLeParametersUpdatedCallback =
     extern "C" fn(connection: &mut BtConnection, interval: u16, latency: u16, timeout: u16);
-pub type BtLeScanCallback = extern "C" fn(addr: &AddressWrapper, rssi: i8, adv_type: u8, buffer: &mut NetworkBufferSimple);
+pub type BtLeScanCallback =
+    extern "C" fn(addr: &AddressWrapper, rssi: i8, adv_type: u8, buffer: &mut NetworkBufferSimple);
 
 #[repr(transparent)]
 pub struct BtConnectionCallbacks(zephyr_sys::raw::bt_conn_cb);
@@ -115,6 +119,29 @@ impl Api {
         callback: BtLeScanCallback,
     ) -> ZephyrResult<()> {
         unsafe { start_scanning(parameters, callback) }
+    }
+
+    pub fn stop_scanning(&mut self) -> ZephyrResult<()> {
+        unsafe { stop_scanning() }
+    }
+
+    pub fn create_connection(
+        &mut self,
+        address: &AddressWrapper,
+        creation_parameters: &ConnectionCreationParameters,
+        connection_parameters: &ConnectionParameters,
+    ) -> ZephyrResult<BtConnection> {
+        unsafe { create_connection(address, creation_parameters, connection_parameters) }
+    }
+
+    pub fn gatt_discover(
+        &self,
+        connection: &mut BtConnection,
+        parameters: &'static mut DiscoverParameters
+    ) -> ZephyrResult<()> {
+        unsafe {
+            gatt::discover(connection, parameters)
+        }
     }
 }
 
@@ -254,16 +281,47 @@ impl RawAdvertisementHandle {
     }
 }
 
-pub unsafe fn start_scanning(scan_parameters: &ScanParameters, callback: BtLeScanCallback) -> ZephyrResult<()> {
+pub unsafe fn start_scanning(
+    scan_parameters: &ScanParameters,
+    callback: BtLeScanCallback,
+) -> ZephyrResult<()> {
     let bt_le_scan_param = zephyr_sys::raw::bt_le_scan_param::from(scan_parameters);
 
-    let errno = zephyr_sys::raw::bt_le_scan_start(
-        &bt_le_scan_param,
-        std::mem::transmute(callback),
-    );
+    let errno = zephyr_sys::raw::bt_le_scan_start(&bt_le_scan_param, std::mem::transmute(callback));
 
     if errno == 0 {
         Ok(())
+    } else {
+        Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
+    }
+}
+
+pub unsafe fn stop_scanning() -> ZephyrResult<()> {
+    let errno = zephyr_sys::raw::bt_le_scan_stop();
+
+    if errno == 0 {
+        Ok(())
+    } else {
+        Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
+    }
+}
+
+pub unsafe fn create_connection(
+    address: &AddressWrapper,
+    creation_parameters: &ConnectionCreationParameters,
+    connection_parameters: &ConnectionParameters,
+) -> ZephyrResult<BtConnection> {
+    let out_pointer: *mut *mut zephyr_sys::raw::bt_conn = std::ptr::null_mut();
+    let errno = zephyr_sys::raw::bt_conn_le_create(
+        transmute(address),
+        transmute(creation_parameters),
+        transmute(connection_parameters),
+        out_pointer,
+    );
+
+    if errno == 0 {
+        let connection = transmute(*out_pointer);
+        Ok(connection)
     } else {
         Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
     }

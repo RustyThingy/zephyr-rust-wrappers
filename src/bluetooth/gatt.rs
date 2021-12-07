@@ -1,5 +1,7 @@
 use crate::bluetooth::connection::BtConnection;
-use crate::bluetooth::uuid::BtUuid16;
+use crate::bluetooth::uuid::{BtUuid, BtUuid128, BtUuid16};
+use crate::bluetooth::CONTEXT;
+use crate::{ZephyrError, ZephyrResult};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::transmute;
@@ -121,6 +123,16 @@ pub unsafe trait UserData {}
 
 unsafe impl UserData for Option<()> {}
 
+pub const FIRST_ATTRIBUTE_HANDLE : u16 = zephyr_sys::raw::BT_ATT_FIRST_ATTRIBUTE_HANDLE as u16;
+pub const LAST_ATTRIBUTE_HANDLE : u16 = zephyr_sys::raw::BT_ATT_LAST_ATTRIBUTE_HANDLE as u16;
+pub const GATT_DISCOVER_PRIMARY : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_PRIMARY as u8;
+pub const GATT_DISCOVER_SECONDARY : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_SECONDARY as u8;
+pub const GATT_DISCOVER_INCLUDE : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_INCLUDE as u8;
+pub const GATT_DISCOVER_DESCRIPTOR : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_DESCRIPTOR as u8;
+pub const GATT_DISCOVER_STD_CHAR_DESC : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_STD_CHAR_DESC as u8;
+pub const GATT_ITER_STOP : u8 = zephyr_sys::raw::BT_GATT_ITER_STOP as u8;
+pub const GATT_ITER_CONTINUE : u8 = zephyr_sys::raw::BT_GATT_ITER_CONTINUE as u8;
+
 #[repr(transparent)]
 pub struct GattAttribute<'uuid, 'ud>(
     zephyr_sys::raw::bt_gatt_attr,
@@ -148,7 +160,7 @@ impl<'uuid, 'ud> GattAttribute<'uuid, 'ud> {
                 },
                 write: match write {
                     None => None,
-                    Some(write) => Some(unsafe{ std::mem::transmute(write) })
+                    Some(write) => Some(unsafe { std::mem::transmute(write) }),
                 },
                 user_data: unsafe { std::mem::transmute(user_data as *mut _) },
                 handle,
@@ -175,7 +187,7 @@ impl<'uuid, 'ud> GattAttribute<'uuid, 'ud> {
                 },
                 write: match write {
                     None => None,
-                    Some(write) => Some(unsafe{ std::mem::transmute(write) })
+                    Some(write) => Some(unsafe { std::mem::transmute(write) }),
                 },
                 user_data,
                 handle,
@@ -183,5 +195,80 @@ impl<'uuid, 'ud> GattAttribute<'uuid, 'ud> {
             },
             PhantomData,
         )
+    }
+}
+
+#[repr(transparent)]
+pub struct NotifyParams(zephyr_sys::raw::bt_gatt_notify_params);
+
+impl NotifyParams {
+    pub fn by_uuid(attribute: &BtUuid128, data: &[u8]) -> Self {
+        Self(zephyr_sys::raw::bt_gatt_notify_params {
+            uuid: unsafe { transmute(attribute as *const _) },
+            attr: std::ptr::null(),
+            data: data.as_ptr() as *const std::ffi::c_void,
+            len: data.len() as u16,
+            func: None,
+            user_data: std::ptr::null_mut(),
+        })
+    }
+}
+
+pub unsafe fn notify(
+    connection: Option<&mut BtConnection>,
+    params: &mut NotifyParams,
+) -> ZephyrResult<()> {
+    let result = unsafe {
+        zephyr_sys::raw::bt_gatt_notify_cb(transmute(connection), transmute(params as *mut _))
+    };
+
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(ZephyrError::from_errno_with_context(result, &CONTEXT))
+    }
+}
+
+pub type DiscoverCallback = extern "C" fn(
+    conn: &mut BtConnection,
+    attr: Option<&GattAttribute>,
+    params: &mut DiscoverParameters,
+) -> u8;
+
+#[repr(transparent)]
+pub struct DiscoverParameters(zephyr_sys::raw::bt_gatt_discover_params);
+
+impl DiscoverParameters {
+    pub const fn new(
+        uuid: &BtUuid128,
+        discover_cb: DiscoverCallback,
+        start_handle: u16,
+        end_handle: u16,
+        type_: u8,
+    ) -> DiscoverParameters {
+        DiscoverParameters (
+            zephyr_sys::raw::bt_gatt_discover_params {
+                uuid: unsafe { transmute(uuid) },
+                func: unsafe { transmute(discover_cb) },
+                __bindgen_anon_1: zephyr_sys::raw::bt_gatt_discover_params__bindgen_ty_1 {
+                    start_handle,
+                },
+                end_handle,
+                type_,
+            }
+        )
+    }
+}
+
+pub unsafe fn discover(connection: &mut BtConnection, parameters: &mut DiscoverParameters) -> ZephyrResult<()> {
+    let errno = zephyr_sys::raw::bt_gatt_discover(
+        transmute(connection),
+        transmute(parameters),
+    );
+
+    if errno == 0 {
+        Ok(())
+    } else {
+        Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
     }
 }

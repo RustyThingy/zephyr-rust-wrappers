@@ -12,8 +12,8 @@ use std::fmt::{Debug, Display, Formatter};
 #[cfg(feature = "bluetooth")]
 pub mod bluetooth;
 pub mod gpio;
-pub mod sensor;
 pub mod network;
+pub mod sensor;
 
 /// Trait for a context in which an error can occur.
 pub trait Context: Debug {
