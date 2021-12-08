@@ -50,7 +50,7 @@ const CONTEXT: SensorWrapperContext = SensorWrapperContext {};
 /// assert_eq!(1.5_f32, sensor_float.into());
 /// assert_eq!(1_u32, sensor_float.into());
 /// ```
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct SensorValue {
     val1: i32,
     val2: i32,
@@ -250,7 +250,7 @@ pub unsafe fn trigger_set(
             }
         } else {
             Err(ZephyrError::new_with_context(
-                ErrorNumber::NNotImplemented,
+                ErrorNumber::NotImplemented,
                 &CONTEXT,
             ))
         }

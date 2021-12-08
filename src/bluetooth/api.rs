@@ -1,6 +1,6 @@
 use crate::bluetooth::connection::BtConnection;
 use crate::bluetooth::data::{BtData, RawBtData};
-use crate::bluetooth::gatt::{GattService, DiscoverParameters};
+use crate::bluetooth::gatt::{GattService, DiscoverParameters, SubscribeParameters};
 use crate::bluetooth::le::{
     AddressWrapper, AdvertisementParameters, ConnectionCreationParameters, ConnectionParameters,
     LeAddress, ScanParameters,
@@ -18,7 +18,7 @@ use std::slice;
 
 pub type BtReadyCallback = extern "C" fn(err: u32) -> ();
 
-pub type BtConnectedCallback = extern "C" fn(connection: &mut BtConnection, error: u8);
+pub type BtConnectedCallback = extern "C" fn(connection: Option<&mut BtConnection>, error: u8);
 pub type BtDisconnectedCallback = extern "C" fn(connection: &mut BtConnection, error: u8);
 pub type BtLeParametersRequestedCallback =
     extern "C" fn(connection: &mut BtConnection, parameters: &mut ConnectionParameters) -> bool;
@@ -137,10 +137,20 @@ impl Api {
     pub fn gatt_discover(
         &self,
         connection: &mut BtConnection,
-        parameters: &'static mut DiscoverParameters
+        parameters: &mut DiscoverParameters,
     ) -> ZephyrResult<()> {
         unsafe {
             gatt::discover(connection, parameters)
+        }
+    }
+
+    pub fn gatt_subscribe(
+        &self,
+        connection: &mut BtConnection,
+        parameters: &'static mut SubscribeParameters,
+    ) -> ZephyrResult<()> {
+        unsafe {
+            gatt::subscribe(connection, parameters)
         }
     }
 }
@@ -311,16 +321,18 @@ pub unsafe fn create_connection(
     creation_parameters: &ConnectionCreationParameters,
     connection_parameters: &ConnectionParameters,
 ) -> ZephyrResult<BtConnection> {
-    let out_pointer: *mut *mut zephyr_sys::raw::bt_conn = std::ptr::null_mut();
+    let mut out_pointer: *mut zephyr_sys::raw::bt_conn = std::ptr::null_mut();
     let errno = zephyr_sys::raw::bt_conn_le_create(
         transmute(address),
         transmute(creation_parameters),
         transmute(connection_parameters),
-        out_pointer,
+        &mut out_pointer as *mut _,
     );
 
+    println!("conn pointer: {}", out_pointer as usize);
+
     if errno == 0 {
-        let connection = transmute(*out_pointer);
+        let connection = transmute(out_pointer);
         Ok(connection)
     } else {
         Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))

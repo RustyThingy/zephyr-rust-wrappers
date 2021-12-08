@@ -126,10 +126,12 @@ unsafe impl UserData for Option<()> {}
 pub const FIRST_ATTRIBUTE_HANDLE : u16 = zephyr_sys::raw::BT_ATT_FIRST_ATTRIBUTE_HANDLE as u16;
 pub const LAST_ATTRIBUTE_HANDLE : u16 = zephyr_sys::raw::BT_ATT_LAST_ATTRIBUTE_HANDLE as u16;
 pub const GATT_DISCOVER_PRIMARY : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_PRIMARY as u8;
+pub const GATT_DISCOVER_CHARACTERISTIC : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_CHARACTERISTIC as u8;
 pub const GATT_DISCOVER_SECONDARY : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_SECONDARY as u8;
 pub const GATT_DISCOVER_INCLUDE : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_INCLUDE as u8;
 pub const GATT_DISCOVER_DESCRIPTOR : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_DESCRIPTOR as u8;
 pub const GATT_DISCOVER_STD_CHAR_DESC : u8 = zephyr_sys::raw::BT_GATT_DISCOVER_STD_CHAR_DESC as u8;
+pub const GATT_CCC_INDICATE: u16 = zephyr_sys::raw::BT_GATT_CCC_INDICATE as u16;
 pub const GATT_ITER_STOP : u8 = zephyr_sys::raw::BT_GATT_ITER_STOP as u8;
 pub const GATT_ITER_CONTINUE : u8 = zephyr_sys::raw::BT_GATT_ITER_CONTINUE as u8;
 
@@ -196,6 +198,18 @@ impl<'uuid, 'ud> GattAttribute<'uuid, 'ud> {
             PhantomData,
         )
     }
+
+    pub fn value_handle(&self) -> u16 {
+        unsafe {
+            zephyr_sys::raw::bt_gatt_attr_value_handle(
+                transmute(self)
+            )
+        }
+    }
+
+    pub fn handle(&self) -> u16 {
+        self.0.handle
+    }
 }
 
 #[repr(transparent)]
@@ -248,20 +262,103 @@ impl DiscoverParameters {
     ) -> DiscoverParameters {
         DiscoverParameters (
             zephyr_sys::raw::bt_gatt_discover_params {
-                uuid: unsafe { transmute(uuid) },
+                uuid: unsafe { transmute(uuid as *const _) },
                 func: unsafe { transmute(discover_cb) },
                 __bindgen_anon_1: zephyr_sys::raw::bt_gatt_discover_params__bindgen_ty_1 {
-                    start_handle,
+                    _included: zephyr_sys::raw::bt_gatt_discover_params__bindgen_ty_1__bindgen_ty_1 {
+                        attr_handle: start_handle,
+                        start_handle: 0,
+                        end_handle: 0,
+                    },
                 },
                 end_handle,
                 type_,
             }
         )
     }
+
+    pub fn set_uuid_128(&mut self, uuid: &BtUuid128) {
+        self.0.uuid = unsafe { transmute(uuid) };
+    }
+
+    pub fn set_uuid_16(&mut self, uuid: &BtUuid16) {
+        self.0.uuid = unsafe { transmute(uuid) };
+    }
+
+    pub fn set_start_handle(&mut self, start_handle: u16) {
+        self.0.__bindgen_anon_1.start_handle = start_handle;
+    }
+
+    pub fn set_type(&mut self, type_: u8) {
+        self.0.type_ = type_;
+    }
+
+    pub fn uuid(&self) -> &zephyr_sys::raw::bt_uuid {
+        unsafe { &*self.0.uuid }
+    }
 }
 
 pub unsafe fn discover(connection: &mut BtConnection, parameters: &mut DiscoverParameters) -> ZephyrResult<()> {
+    println!("api call: discover");
+    println!("connection: {}", connection as *const _ as usize);
     let errno = zephyr_sys::raw::bt_gatt_discover(
+        transmute(connection),
+        transmute(parameters),
+    );
+
+    if errno == 0 {
+        Ok(())
+    } else {
+        Err(ZephyrError::from_errno_with_context(errno, &CONTEXT))
+    }
+}
+
+pub type NotificationCallback = extern "C" fn(
+    conn: &mut BtConnection,
+    params: &mut SubscribeParameters,
+    data: *const u8,
+    length: u16,
+) -> u8;
+
+#[repr(transparent)]
+pub struct SubscribeParameters(zephyr_sys::raw::bt_gatt_subscribe_params);
+
+impl SubscribeParameters {
+    pub const fn default() -> SubscribeParameters {
+        SubscribeParameters (
+            zephyr_sys::raw::bt_gatt_subscribe_params {
+                notify: None,
+                write: None,
+                value_handle: 0,
+                ccc_handle: 0,
+                value: 0,
+                flags: [0],
+                node: zephyr_sys::raw::sys_snode_t {
+                    next: std::ptr::null_mut(),
+                }
+            }
+        )
+    }
+
+    pub fn set_notify(&mut self, notify: NotificationCallback) {
+        self.0.notify = unsafe { transmute(notify) };
+    }
+
+    pub fn set_value(&mut self, value: u16) {
+        self.0.value = value;
+    }
+
+    pub fn set_ccc_handle(&mut self, ccc_handle: u16) {
+        self.0.ccc_handle = ccc_handle;
+    }
+
+    pub fn set_value_handle(&mut self, value_handle: u16) {
+        self.0.value_handle = value_handle;
+    }
+}
+
+pub unsafe fn subscribe(connection: &mut BtConnection, parameters: &mut SubscribeParameters) -> ZephyrResult<()> {
+    let errno = zephyr_sys::raw::bt_gatt_subscribe(
         transmute(connection),
         transmute(parameters),
     );

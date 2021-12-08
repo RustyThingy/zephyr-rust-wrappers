@@ -64,7 +64,7 @@ impl BtData {
                     unsafe { slice::from_raw_parts(data.data, data.data_len as usize) };
                 let uuids = slice
                     .chunks(16)
-                    .map(|chunk| BtUuid::from_uuid(Uuid::from_slice_le(chunk).unwrap()))
+                    .map(|chunk| BtUuid::from_uuid(Uuid::from_slice(chunk).unwrap()))
                     .collect();
                 Some(BtData::UuidAll(uuids))
             }
@@ -77,7 +77,7 @@ impl BtData {
                     unsafe { slice::from_raw_parts(data.data, data.data_len as usize) };
                 let uuids = slice
                     .chunks(16)
-                    .map(|chunk| BtUuid::from_uuid(Uuid::from_slice_le(chunk).unwrap()))
+                    .map(|chunk| BtUuid::from_uuid(Uuid::from_slice(chunk).unwrap()))
                     .collect();
                 Some(BtData::UuidIncomplete(uuids))
             }

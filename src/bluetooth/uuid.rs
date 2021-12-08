@@ -209,3 +209,21 @@ pub fn compare_uuids(one: &bt_uuid, other: &bt_uuid) -> bool {
         }
     }
 }
+
+pub unsafe trait AsBtUuid {
+    fn as_bt_uuid(&self) -> &bt_uuid {
+        unsafe { transmute(&self) }
+    }
+}
+
+unsafe impl AsBtUuid for BtUuid128 {
+
+}
+
+unsafe impl AsBtUuid for BtUuid32 {
+
+}
+
+unsafe impl AsBtUuid for BtUuid16 {
+
+}

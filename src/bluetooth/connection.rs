@@ -3,7 +3,7 @@ use std::mem::transmute;
 
 #[repr(transparent)]
 #[derive(Eq)]
-pub struct BtConnection(*mut zephyr_sys::raw::bt_conn);
+pub struct BtConnection(pub *mut zephyr_sys::raw::bt_conn);
 
 impl BtConnection {
     pub fn get_destination(&self) -> Option<LeAddress> {

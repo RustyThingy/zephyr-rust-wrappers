@@ -7,7 +7,7 @@
 extern crate zephyr_sys;
 
 use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display, Formatter, write};
 
 #[cfg(feature = "bluetooth")]
 pub mod bluetooth;
@@ -28,8 +28,8 @@ pub trait Context: Debug {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ErrorNumber {
     Permission = 1,
-    NNotImplemented = -88,
     NotImplemented = 88,
+    NotConnected = 128,
     Other(i32),
 }
 
@@ -37,9 +37,9 @@ impl From<i32> for ErrorNumber {
     fn from(errno: i32) -> Self {
         match errno {
             1 => ErrorNumber::Permission,
-            88 => ErrorNumber::NotImplemented,
-            -88 => ErrorNumber::NNotImplemented,
-            errno => ErrorNumber::Other(errno),
+            88 | -88 => ErrorNumber::NotImplemented,
+            128 | -128 => ErrorNumber::NotConnected,
+            errno => ErrorNumber::Other(errno.abs()),
         }
     }
 }
@@ -53,11 +53,11 @@ impl Display for ErrorNumber {
             ErrorNumber::Other(errno) => {
                 write!(f, "Unknown error number: {}", errno)
             }
-            ErrorNumber::NNotImplemented => {
-                write!(f, "-88: Function not implemented")
-            }
             ErrorNumber::NotImplemented => {
                 write!(f, "88: Function not implemented")
+            }
+            ErrorNumber::NotConnected => {
+                write!(f, "128: Not connected")
             }
         }
     }
@@ -103,6 +103,10 @@ impl ZephyrError {
             errno: errno.into(),
             context: Some(context),
         }
+    }
+
+    pub fn number(&self) -> ErrorNumber {
+        self.errno
     }
 }
 
