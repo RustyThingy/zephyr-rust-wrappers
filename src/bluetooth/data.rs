@@ -33,7 +33,7 @@ impl BtData {
             BtData::Flags(flag) => flag.to_be_bytes().to_vec(),
             BtData::UuidAll(uuids) => uuids
                 .iter()
-                .flat_map(|uuid| uuid.as_bytes().into_iter().rev())
+                .flat_map(|uuid| uuid.as_bytes().into_iter())
                 .map(|byte| *byte)
                 .collect(),
             BtData::CompleteName(name) => name.as_bytes().to_vec(),
@@ -43,7 +43,7 @@ impl BtData {
             }
             BtData::UuidIncomplete(uuids) => uuids
                 .iter()
-                .flat_map(|uuid| uuid.as_bytes().into_iter().rev())
+                .flat_map(|uuid| uuid.as_bytes().into_iter())
                 .map(|byte| *byte)
                 .collect(),
             BtData::ShortenedName(name) => name.as_bytes().to_vec(),
